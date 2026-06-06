@@ -1,0 +1,38 @@
+[package]
+name = "rna-pop"
+version = "0.1.0"
+edition = "2021"
+description = "RNA-seq read quantification: transcript mapping, splice-aware alignment, EM-based abundance estimation"
+license = "MIT"
+authors = ["Mladen Popovic <mladenpop@gmail.com>"]
+
+[dependencies]
+rayon = "1.10"
+clap = { version = "4", features = ["derive"] }
+memmap2 = "0.9"
+zstd = "0.13"
+sha2 = "0.10"
+fastq = "0.3"
+libsais = { version = "0.2", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+thiserror = "2"
+indicatif = "0.17"
+flate2 = "1.0"
+
+[lib]
+name = "rna_pop"
+path = "src/lib.rs"
+crate-type = ["rlib"]
+
+[features]
+default = []
+mmap = []
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bin]]
+name = "rna-pop"
+path = "src/main.rs"

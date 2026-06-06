@@ -1,0 +1,9 @@
+/target
+**/*.rnp
+**/*.sam
+**/*.rds
+Cargo.lock
+install_polyester.R
+simulate_reads.R
+convert_fastq.R
+compare.R
