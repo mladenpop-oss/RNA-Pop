@@ -106,14 +106,17 @@ rna-pop em --sam output.sam --index transcripts.rnp --tsv abundances.tsv --itera
 
 ## Accuracy
 
-Benchmarked on simulated RNA-seq data (polyester, 84,742 reads, 11,567 human chr19 transcripts):
+Benchmarked on simulated RNA-seq data (polyester, 11,567 human chr19 transcripts + ERCC spike-ins):
 
-| Metric | Value |
-|--------|-------|
-| Map rate | 97% |
-| Spearman ρ (ranking) | 0.85 |
-| Pearson r (linear) | 0.88 |
-| Top-10 overlap | 9/10 |
+| Metric | 84K reads | 2M reads |
+|--------|-----------|----------|
+| Map rate | 97.0% | 97.1% |
+| Speed | 16.6K reads/s | 20.5K reads/s |
+| Spearman ρ (ranking) | 0.85 | **0.99** |
+| Pearson r (linear) | 0.88 | **0.98** |
+| Top-10 overlap | 9/10 | 7/10 |
+
+With 2M reads, RNA-Pop achieves near-perfect correlation (Spearman ρ = 0.99, Pearson r = 0.98) against ground truth transcript abundances.
 
 Length normalization in the EM algorithm is critical for accurate quantification and is enabled automatically when `--index` is provided.
 
