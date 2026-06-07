@@ -111,14 +111,19 @@ Benchmarked on simulated RNA-seq data (polyester, 11,567 human chr19 transcripts
 | Metric | 84K reads | 2M reads |
 |--------|-----------|----------|
 | Map rate | 97.0% | 97.1% |
-| Speed | 16.6K reads/s | 20.5K reads/s |
+| Speed | 16.6K reads/s | 21.8K reads/s (16 threads) |
 | Spearman ρ (ranking) | 0.85 | **0.99** |
 | Pearson r (linear) | 0.88 | **0.98** |
 | Top-10 overlap | 9/10 | 7/10 |
 
-With 2M reads, RNA-Pop achieves near-perfect correlation (Spearman ρ = 0.99, Pearson r = 0.98) against ground truth transcript abundances.
+### Comparison with Salmon
 
-Length normalization in the EM algorithm is critical for accurate quantification and is enabled automatically when `--index` is provided.
+| Tool | Spearman ρ | Pearson r | Top-10 overlap |
+|------|-----------|-----------|----------------|
+| **RNA-Pop** | **0.9933** | **0.9787** | **7/10** |
+| Salmon (NumReads) | 0.9889 | 0.9731 | 7/10 |
+
+RNA-Pop achieves comparable accuracy to Salmon with a simpler architecture and no external dependencies.
 
 ## Output Format
 
@@ -172,6 +177,10 @@ ENST00000270460.10	0.001238
 ## License
 
 MIT
+
+## Citation
+
+DOI: https://zenodo.org/doi/10.5281/zenodo.20578611
 
 ## Author
 
