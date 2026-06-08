@@ -1,16 +1,20 @@
 # RNA-Pop
 
-**RNA-seq read quantification** using FM-index mapping and EM-based abundance estimation.
+**RNA-seq read quantification and differential expression analysis** using FM-index mapping and EM-based abundance estimation.
 
-RNA-Pop maps RNA-seq reads to transcriptome references using a compact FM-index with bit-level parallelism, then quantifies expression at transcript level using an EM algorithm with length normalization.
+RNA-Pop maps RNA-seq reads to transcriptome references using a compact FM-index with bit-level parallelism, quantifies expression at transcript level using an EM algorithm with length normalization, and provides quality control, biomarker analysis, and differential expression tools for cancer research.
 
 ## Features
 
 - **FM-index mapping** — SA-IS constructed FM-index with 2-bit DNA encoding for compact memory usage
 - **Splice-aware alignment** — XOR, Smith-Waterman, hybrid, softclip, and chain alignment modes
-- **EM quantification** — Soft-assignment EM algorithm with transcript length normalization (Spearman ρ = 0.85)
-- **Parallel mapping** — Multi-threaded read mapping with Rayon
+- **EM quantification** — Soft-assignment EM algorithm with transcript length normalization (Spearman ρ = 0.99)
+- **Parallel mapping** — Multi-threaded read mapping with Rayon (21.8K reads/s on 16 threads)
 - **Consensus modes** — Multi-k, multi-chunk, and fast consensus for improved accuracy
+- **Quality control** — Mapping statistics, coverage analysis, and uniformity metrics
+- **Cancer biomarkers** — Pan-cancer panels for breast, lung, prostate, colorectal cancers
+- **Differential expression** — Multi-sample comparison with fold change and significance testing
+- **Clinical reports** — HTML reports with biomarker analysis and QC metrics
 - **SAM output** — Standard SAM format for downstream analysis
 - **FASTQ/FASTA** — Supports both single-end and paired-end reads
 
@@ -57,6 +61,9 @@ rna-pop em --sam output.sam --index transcripts.rnp --tsv abundances.tsv
 | `map` | Map reads to indexed transcripts |
 | `stats` | Show index statistics |
 | `em` | EM-based transcript quantification |
+| `qc` | Quality control metrics for SAM file |
+| `report` | Generate clinical report with biomarker analysis |
+| `compare` | Differential expression between two samples |
 | `consensus` | Multi-k consensus mapping |
 | `fastcon` | Fast consensus across multiple indexes |
 | `chunkconsensus` | Multi-chunk consensus mapping |
@@ -101,8 +108,76 @@ rna-pop em --sam output.sam --index transcripts.rnp --tsv abundances.tsv --itera
 | `--sam` | SAM file from mapping | required |
 | `--index` | Index file (for transcript lengths) | - |
 | `--tsv` | Output TSV with abundances | - |
-| `--iterations` | Max EM iterations | 20 |
+  | `--iterations` | Max EM iterations | 20 |
 | `--threshold` | Convergence threshold | 0.001 |
+
+### `qc`
+
+```bash
+rna-pop qc --sam output.sam --output qc_report.txt
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--sam` | SAM file from mapping | required |
+| `--output` | Output QC report file | console |
+
+**Output:** Mapping rate, unique/multi-mapped reads, average mapping quality, transcript coverage, coverage uniformity.
+
+### `report`
+
+```bash
+rna-pop report --sam output.sam --abundances abundances.tsv --output report.html --panels pancancer,breast,lung
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--sam` | SAM file from mapping | required |
+| `--abundances` | TSV file with abundances from EM | required |
+| `--output` | Output HTML report path | `report.html` |
+| `--panels` | Cancer panels: `breast`,`lung`,`prostate`,`colorectal`,`pancancer` | `pancancer` |
+
+**Output:** HTML report with QC metrics and cancer biomarker expression levels.
+
+### `compare`
+
+```bash
+rna-pop compare -1 tumour.tsv -2 normal.tsv --output diff.tsv --report comparison.html
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-1, --abundances-1` | First sample abundance TSV | required |
+| `-2, --abundances-2` | Second sample abundance TSV | required |
+| `--output` | Output TSV with comparison results | - |
+| `--report` | Output HTML report | - |
+| `--fc-threshold` | Fold change threshold | 1.5 |
+| `--p-threshold` | p-value threshold | 0.05 |
+
+**Output:** Differentially expressed transcripts with fold change, log2FC, p-values, and significance.
+
+## Cancer Research Pipeline
+
+Complete workflow for cancer biomarker analysis:
+
+```bash
+# 1. Map tumour and normal samples
+rna-pop run --genome transcripts.fa --reads tumour.fastq --sam tumour.sam --threads 16
+rna-pop run --genome transcripts.fa --reads normal.fastq --sam normal.sam --threads 16
+
+# 2. Quantify transcript abundances
+rna-pop em --sam tumour.sam --index transcripts.rnp --tsv tumour.tsv
+rna-pop em --sam normal.sam --index transcripts.rnp --tsv normal.tsv
+
+# 3. Quality control
+rna-pop qc --sam tumour.sam --output tumour_qc.txt
+
+# 4. Differential expression analysis
+rna-pop compare -1 tumour.tsv -2 normal.tsv --report differential.html
+
+# 5. Clinical biomarker report
+rna-pop report --sam tumour.sam --abundances tumour.tsv --output clinical.html --panels breast,lung,pancancer
+```
 
 ## Accuracy
 

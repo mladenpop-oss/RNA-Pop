@@ -92,8 +92,10 @@
 
 pub mod align;
 pub mod bam;
+pub mod biomarkers;
 pub mod chain;
 pub mod chunk_consensus;
+pub mod compare;
 pub mod consensus;
 pub mod delta;
 pub mod em;
@@ -102,7 +104,9 @@ pub mod fastcon;
 pub mod fastq;
 pub mod fm;
 pub mod persisted;
+pub mod qc;
 pub mod rank;
+pub mod report;
 pub mod sam;
 pub mod serialize;
 

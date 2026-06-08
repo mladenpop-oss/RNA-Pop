@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use std::collections::HashMap;
 use std::io::BufRead;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -7,6 +8,9 @@ use rna_pop::chunk_consensus::MultiChunkConsensus;
 use rna_pop::consensus::MultiKConsensus;
 use rna_pop::fastcon::FastCon;
 use rna_pop::fastq::parse_fastq;
+use rna_pop::qc::run_qc;
+use rna_pop::report::generate_clinical_report;
+use rna_pop::compare::{compare_samples, generate_comparison_report};
 use rna_pop::{AlignMode, BitPop};
 
 #[derive(Parser)]
@@ -34,6 +38,12 @@ enum Commands {
     FastCon(FastConArgs),
     /// Multi chunk-% consensus: same index, different chunk sizes, voting
     ChunkConsensus(ChunkConsensusArgs),
+    /// Quality control metrics for SAM file
+    Qc(QcArgs),
+    /// Generate clinical report with biomarker analysis
+    Report(ReportArgs),
+    /// Compare two samples for differential expression
+    Compare(CompareArgs),
 }
 
 // --- Run ---
@@ -280,6 +290,69 @@ struct ChunkConsensusArgs {
     sam: Option<PathBuf>,
 }
 
+// --- QC ---
+
+#[derive(clap::Args)]
+struct QcArgs {
+    /// SAM file to analyze
+    #[arg(short, long)]
+    sam: PathBuf,
+
+    /// Output QC report file (optional)
+    #[arg(short, long)]
+    output: Option<PathBuf>,
+}
+
+// --- Report ---
+
+#[derive(clap::Args)]
+struct ReportArgs {
+    /// SAM file from mapping
+    #[arg(short, long)]
+    sam: PathBuf,
+
+    /// TSV file with abundances from EM
+    #[arg(short, long)]
+    abundances: PathBuf,
+
+    /// Output HTML report path
+    #[arg(short, long, default_value = "report.html")]
+    output: PathBuf,
+
+    /// Cancer panels to evaluate (comma-separated: breast,lung,prostate,colorectal,pancancer)
+    #[arg(long, default_value = "pancancer")]
+    panels: String,
+}
+
+// --- Compare ---
+
+#[derive(clap::Args)]
+struct CompareArgs {
+    /// First sample abundance TSV
+    #[arg(short = '1', long)]
+    abundances_1: PathBuf,
+
+    /// Second sample abundance TSV
+    #[arg(short = '2', long)]
+    abundances_2: PathBuf,
+
+    /// Output TSV file with comparison results
+    #[arg(short, long)]
+    output: Option<PathBuf>,
+
+    /// Output HTML report
+    #[arg(long)]
+    report: Option<PathBuf>,
+
+    /// Fold change threshold for significance
+    #[arg(long, default_value_t = 1.5)]
+    fc_threshold: f64,
+
+    /// p-value threshold for significance
+    #[arg(long, default_value_t = 0.05)]
+    p_threshold: f64,
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -292,6 +365,9 @@ fn main() {
         Commands::Consensus(args) => cmd_consensus(args),
         Commands::FastCon(args) => cmd_fastcon(args),
         Commands::ChunkConsensus(args) => cmd_chunk_consensus(args),
+        Commands::Qc(args) => cmd_qc(args),
+        Commands::Report(args) => cmd_report(args),
+        Commands::Compare(args) => cmd_compare(args),
     }
 }
 
@@ -659,4 +735,87 @@ fn cmd_chunk_consensus(args: ChunkConsensusArgs) {
 
     let total_time = start.elapsed();
     println!("Total time: {:.2}s", total_time.as_secs_f64());
+}
+
+fn cmd_qc(args: QcArgs) {
+    match run_qc(&args.sam, args.output.as_ref()) {
+        Ok(_) => {},
+        Err(e) => {
+            eprintln!("Error running QC: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_report(args: ReportArgs) {
+    // Run QC first
+    let qc = match run_qc(&args.sam, None) {
+        Ok(metrics) => metrics,
+        Err(e) => {
+            eprintln!("Error running QC: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    // Read abundances
+    let abundances_file = match std::fs::File::open(&args.abundances) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("Error opening abundances file: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    let reader = std::io::BufReader::new(abundances_file);
+    let mut abundances = HashMap::new();
+
+    for (i, line) in reader.lines().enumerate() {
+        if i == 0 {
+            continue; // Skip header
+        }
+        let line = match line {
+            Ok(l) => l,
+            Err(_) => continue,
+        };
+        let parts: Vec<&str> = line.split('\t').collect();
+        if parts.len() >= 2 {
+            let transcript = parts[0].trim().to_string();
+            let abundance: f64 = parts[1].trim().parse().unwrap_or(0.0);
+            abundances.insert(transcript, abundance);
+        }
+    }
+
+    // Parse panels
+    let panels: Vec<&str> = args.panels.split(',').map(|s| s.trim()).collect();
+
+    // Generate report
+    match generate_clinical_report(&args.output, &qc, &abundances, &panels) {
+        Ok(_) => println!("Report generated: {}", args.output.display()),
+        Err(e) => {
+            eprintln!("Error generating report: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_compare(args: CompareArgs) {
+    // Run comparison
+    let results = match compare_samples(&args.abundances_1, &args.abundances_2, args.output.as_ref(), args.fc_threshold, args.p_threshold) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Error comparing samples: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    // Generate HTML report if requested
+    if let Some(report_path) = args.report {
+        match generate_comparison_report(&report_path, &results, args.fc_threshold, args.p_threshold) {
+            Ok(_) => println!("Comparison report generated: {}", report_path.display()),
+            Err(e) => {
+                eprintln!("Error generating report: {}", e);
+                std::process::exit(1);
+            }
+        }
+    }
 }
