@@ -177,6 +177,9 @@ rna-pop compare -1 tumour.tsv -2 normal.tsv --report differential.html
 
 # 5. Clinical biomarker report
 rna-pop report --sam tumour.sam --abundances tumour.tsv --output clinical.html --panels breast,lung,pancancer
+
+# 6. Fusion detection
+rna-pop fusion --sam tumour.sam --report fusions.html
 ```
 
 ## Accuracy
@@ -260,3 +263,8 @@ DOI: https://zenodo.org/doi/10.5281/zenodo.20578611
 ## Author
 
 Mladen Popović <mladenpop@gmail.com>
+
+## ⚠️ Disclaimer
+
+RNA-Pop is a research tool. NOT a certified medical device.
+Must NOT be used for clinical diagnosis without regulatory approval.
